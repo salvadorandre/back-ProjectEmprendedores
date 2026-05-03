@@ -1,0 +1,68 @@
+from typing import Required
+import uuid
+from django.db import models
+
+class Paciente(models.Model): 
+    user = models.OneToOneField("autentication.Usuario", on_delete=models.CASCADE)
+    fecha_nac = models.DateField()
+    descripcion = models.TextField()
+    telefono = models.CharField(max_length=20)
+
+    def __str__(self):
+        return self.user.email
+
+class Doctor(models.Model): 
+    user = models.OneToOneField("autentication.Usuario", on_delete=models.CASCADE)
+    especialidad = models.CharField(max_length=20)
+    colegiado = models.CharField(max_length=20)
+
+    def __str__(self):
+        return self.user.email
+
+class Medicamento(models.Model): 
+    doctor = models.ForeignKey(Doctor, on_delete=models.CASCADE)
+    nombre_medicamento = models.CharField(max_length=20) 
+    descripcion = models.TextField() 
+    is_active = models.BooleanField(default=True)
+    imagen = models.ImageField(upload_to='medicamentos', null=True, blank=True);
+
+    def __str__(self):
+        return self.nombre_medicamento 
+
+class Tratamiento(models.Model): 
+    doctor = models.ForeignKey(Doctor, on_delete=models.CASCADE)
+    titulo = models.CharField(max_length=20)
+    descripcion = models.TextField()
+    uuid = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False) 
+    created_at = models.DateTimeField(auto_now_add=True) 
+    updated_at = models.DateTimeField(auto_now=True) 
+
+    def __str__(self):
+        return self.titulo 
+
+class PacienteTratamiento(models.Model): 
+    paciente = models.ForeignKey(Paciente, on_delete=models.CASCADE)
+    tratamiento = models.ForeignKey(Tratamiento, on_delete=models.CASCADE)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True) 
+    updated_at = models.DateTimeField(auto_now=True) 
+
+class TratamientoMedicamento(models.Model): 
+    tratamiento = models.ForeignKey(Tratamiento, on_delete=models.CASCADE)
+    medicamento = models.ForeignKey(Medicamento, on_delete=models.CASCADE)
+    dosis = models.CharField(max_length=20)
+    horario = models.CharField(max_length=20)
+    instrucciones = models.TextField()
+
+    def __str__(self): 
+        return self.medicamento.nombre_medicamento
+
+class RegistroMedication(models.Model): 
+    paciente = models.ForeignKey(Paciente, on_delete=models.CASCADE)
+    tratamiento_medicamento = models.ForeignKey(TratamientoMedicamento, on_delete=models.CASCADE)
+    fecha_toma = models.DateField()
+    is_tomado = models.BooleanField(default=False)
+    hora = models.TimeField()
+
+    def __str__(self): 
+        return f"{self.paciente.user.email} - {self.tratamiento_medicamento.medicamento.nombre_medicamento}"
