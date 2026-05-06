@@ -27,6 +27,6 @@ urlpatterns = [
     path('api/docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
     path('api/redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
 
-    #Rutas para los medicamentos
+    # Rutas de la app clinix (medicamentos, tratamientos, paciente_tratamiento)
     path('api/v1/', include('clinix.urls')), 
 ]

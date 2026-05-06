@@ -65,4 +65,4 @@ class RegistroMedication(models.Model):
     hora = models.TimeField()
 
     def __str__(self): 
-        return f"{self.paciente.user.email} - {self.tratamiento_medicamento.medicamento.nombre_medicamento}"
+        return f"{self.paciente.user.email} - {self.tratamiento_medicamento.medicamento.nombre_medicamento}" 
