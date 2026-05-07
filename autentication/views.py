@@ -12,15 +12,28 @@ from clinix.models import Doctor, Paciente;
 
 
 
+@extend_schema(tags=['Autenticación - Registro'])
 class RegisterDoctorView(APIView): 
 
     @extend_schema(
         summary="Registrar un nuevo doctor",
         description="Registra un nuevo doctor en la base de datos y devuelve sus tokens de acceso y refresco.",
-        request=UsuarioSerializer,
+        request={
+            "application/json": {
+                "type": "object",
+                "properties": {
+                    "email": {"type": "string", "format": "email", "example": "doctor@ejemplo.com"},
+                    "password": {"type": "string", "example": "contraseña_segura123"},
+                    "especialidad": {"type": "string", "example": "Cardiología"},
+                    "colegiado": {"type": "string", "example": "COL-123456"}
+                },
+                "required": ["email", "password", "especialidad", "colegiado"]
+            }
+        },
         responses={
             201: OpenApiResponse(description="Doctor creado exitosamente"),
             400: OpenApiResponse(description="Errores de validación"),
+            500: OpenApiResponse(description="Error interno del servidor")
         }
     )
     def post(self, request): 
@@ -57,15 +70,29 @@ class RegisterDoctorView(APIView):
                 'error': str(e),
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR);
 
+@extend_schema(tags=['Autenticación - Registro'])
 class RegisterPacienteView(APIView): 
 
     @extend_schema(
         summary="Registrar un nuevo paciente",
         description="Registra un nuevo paciente en la base de datos y devuelve sus tokens de acceso y refresco.",
-        request=UsuarioSerializer,
+        request={
+            "application/json": {
+                "type": "object",
+                "properties": {
+                    "email": {"type": "string", "format": "email", "example": "paciente@ejemplo.com"},
+                    "password": {"type": "string", "example": "contraseña_segura123"},
+                    "fecha_nac": {"type": "string", "format": "date", "example": "1990-05-15"},
+                    "descripcion": {"type": "string", "example": "Paciente con hipertensión leve"},
+                    "telefono": {"type": "string", "example": "+502 12345678"}
+                },
+                "required": ["email", "password", "fecha_nac", "descripcion", "telefono"]
+            }
+        },
         responses={
             201: OpenApiResponse(description="Paciente creado exitosamente"),
             400: OpenApiResponse(description="Errores de validación"),
+            500: OpenApiResponse(description="Error interno del servidor")
         }
     )
 
@@ -106,6 +133,7 @@ class RegisterPacienteView(APIView):
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR);
 
 
+@extend_schema(tags=['Autenticación - Registro'])
 class RegisterView(APIView):
 
     #permite que cualquera acceda a este endpoint sin estar logeado (por el momento)
@@ -138,6 +166,7 @@ class RegisterView(APIView):
         
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+@extend_schema(tags=['Autenticación - Sesión'])
 class LoginView(APIView): 
     
     permission_classes = [AllowAny]; 
@@ -156,7 +185,17 @@ class LoginView(APIView):
             }
         },
         responses={
-            200: OpenApiResponse(description="Inicio de sesión exitoso"),
+            200: OpenApiResponse(
+                description="Inicio de sesión exitoso",
+                response={
+                    "type": "object",
+                    "properties": {
+                        "user": {"type": "object"},
+                        "refresh": {"type": "string", "example": "eyJ0eXAiOiJKV1QiLCJ..."},
+                        "access": {"type": "string", "example": "eyJ0eXAiOiJKV1QiLCJ..."}
+                    }
+                }
+            ),
             400: OpenApiResponse(description="Petición incorrecta o datos faltantes"),
             401: OpenApiResponse(description="Credenciales inválidas"),
             404: OpenApiResponse(description="Usuario no encontrado"),
@@ -199,6 +238,7 @@ class LoginView(APIView):
 
             
 
+@extend_schema(tags=['Autenticación - Sesión'])
 class LogoutView(APIView): 
     permission_classes = [IsAuthenticated]; 
 

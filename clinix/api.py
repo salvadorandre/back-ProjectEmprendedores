@@ -16,24 +16,25 @@ from .models import Medicamento, Tratamiento, PacienteTratamiento, TratamientoMe
 
 @extend_schema(tags=['Medicamentos'])
 class MedicamentoView(APIView): 
+    permission_classes = [IsAuthenticated]
     serializer_class = MedicamentoSerializer
 
 
     @extend_schema(
-        summary="Obtener todos los medicamentos",
-        description="Obtiene todos los medicamentos de la base de datos.",
+        summary="Obtener todos los medicamentos o uno por ID",
+        description="Si se envía un ID en la URL, retorna un solo medicamento. Si no, retorna todos los medicamentos.",
         parameters=[
             OpenApiParameter(
-                name="nombre", 
-                type=OpenApiTypes.STR, 
-                location=OpenApiParameter.QUERY, 
-                description="Filtrar por nombre del medicamento (Ejemplo: paracetamol)",
-                required=True
+                name="id",
+                type=OpenApiTypes.INT,
+                location=OpenApiParameter.PATH,
+                description="ID del medicamento (opcional)",
+                required=False
             ),
         ],
         responses={
-            200: OpenApiResponse(description="Medicamentos obtenidos exitosamente"),
-            401: OpenApiResponse(description="No autorizado"),
+            200: OpenApiResponse(description="Medicamento(s) obtenido(s) exitosamente"),
+            404: OpenApiResponse(description="El medicamento no existe"),
         }
     )
     def get(self, request, id=None): 
@@ -78,22 +79,24 @@ class MedicamentoView(APIView):
     
     @extend_schema(
         summary="Crear un nuevo medicamento",
-        description="Crea un nuevo medicamento en el sistema. Debe enviarse como form-data si incluye una imagen.",
+        description="Crea un nuevo medicamento. Enviar como form-data si incluye imagen, o JSON sin imagen.",
         request={
             "multipart/form-data": {
                 "type": "object",
                 "properties": {
-                    "doctor": {"type": "integer", "description": "ID del doctor al que pertenece"},
-                    "nombre_medicamento": {"type": "string", "example": "Paracetamol 500mg"},
-                    "descripcion": {"type": "string", "example": "Analgésico y antipirético"},
-                    "imagen": {"type": "string", "format": "binary", "description": "Archivo de imagen"}
+                    "doctor": {"type": "integer", "description": "ID del doctor propietario", "example": 1},
+                    "nombre_medicamento": {"type": "string", "description": "Nombre del medicamento (max 20 caracteres)", "example": "Paracetamol 500mg"},
+                    "descripcion": {"type": "string", "description": "Descripción del medicamento", "example": "Analgésico y antipirético para dolor leve a moderado"},
+                    "imagen": {"type": "string", "format": "binary", "description": "Imagen del medicamento (opcional)"},
+                    "is_active": {"type": "boolean", "description": "Estado activo (default: true)", "example": True}
                 },
                 "required": ["doctor", "nombre_medicamento", "descripcion"]
             }
         },
         responses={
             201: OpenApiResponse(description="Medicamento creado exitosamente"),
-            401: OpenApiResponse(description="No autorizado"),
+            400: OpenApiResponse(description="Error de validación en los datos"),
+            500: OpenApiResponse(description="Error interno del servidor"),
         }
     )
     def post(self, request): 
@@ -129,11 +132,25 @@ class MedicamentoView(APIView):
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR); 
             
     @extend_schema(
-        summary="Actualizar un medicamento",
-        description="Actualiza un medicamento",
+        summary="Actualizar un medicamento por ID",
+        description="Actualiza los campos de un medicamento existente. Se debe enviar el ID en la URL.",
+        parameters=[
+            OpenApiParameter(name="id", type=OpenApiTypes.INT, location=OpenApiParameter.PATH, description="ID del medicamento a actualizar", required=True),
+        ],
+        request={
+            "multipart/form-data": {
+                "type": "object",
+                "properties": {
+                    "nombre_medicamento": {"type": "string", "example": "Ibuprofeno 400mg"},
+                    "descripcion": {"type": "string", "example": "Antiinflamatorio no esteroideo"},
+                    "imagen": {"type": "string", "format": "binary", "description": "Nueva imagen del medicamento"}
+                },
+                "required": ["nombre_medicamento", "descripcion", "imagen"]
+            }
+        },
         responses={
             200: OpenApiResponse(description="Medicamento actualizado exitosamente"),
-            401: OpenApiResponse(description="No autorizado"),
+            500: OpenApiResponse(description="Error al actualizar (medicamento no encontrado u otro error)"),
         }
     )
     def put(self, request, id): 
@@ -163,11 +180,14 @@ class MedicamentoView(APIView):
 
     #eliminado logico, no se eliminara el medicamento
     @extend_schema(
-        summary="Eliminar un medicamento",
-        description="Elimina un medicamento",
+        summary="Eliminar un medicamento (borrado lógico)",
+        description="Realiza un borrado lógico del medicamento (is_active=False). No lo elimina de la base de datos.",
+        parameters=[
+            OpenApiParameter(name="id", type=OpenApiTypes.INT, location=OpenApiParameter.PATH, description="ID del medicamento a eliminar", required=True),
+        ],
         responses={
             200: OpenApiResponse(description="Medicamento eliminado exitosamente"),
-            401: OpenApiResponse(description="No autorizado"),
+            500: OpenApiResponse(description="Error al eliminar el medicamento"),
         }
     )
     def delete(self, request, id): 
@@ -193,10 +213,21 @@ class MedicamentoView(APIView):
 
 
 @extend_schema(tags=['Tratamientos'])
-
 class TratamientoView(APIView) : 
+    permission_classes = [IsAuthenticated]    
     serializer_class = TratamientoSerializer
 
+    @extend_schema(
+        summary="Obtener todos los tratamientos o uno por UUID",
+        description="Si se envía un UUID en la URL, retorna un solo tratamiento. Si no, retorna todos.",
+        parameters=[
+            OpenApiParameter(name="id", type=OpenApiTypes.UUID, location=OpenApiParameter.PATH, description="UUID del tratamiento (opcional)", required=False),
+        ],
+        responses={
+            200: OpenApiResponse(description="Tratamiento(s) obtenido(s) exitosamente"),
+            404: OpenApiResponse(description="El tratamiento no existe"),
+        }
+    )
     def get(self, request, id=None): 
         # Si envían un ID (que en este caso es un UUID), buscamos solo ese tratamiento
         if id is not None: 
@@ -233,6 +264,25 @@ class TratamientoView(APIView) :
             }, status=status.HTTP_200_OK)
 
     
+    @extend_schema(
+        summary="Crear un nuevo tratamiento",
+        description="Crea un nuevo tratamiento asociado a un doctor.",
+        request={
+            "application/json": {
+                "type": "object",
+                "properties": {
+                    "doctor": {"type": "integer", "description": "ID del doctor que crea el tratamiento", "example": 1},
+                    "titulo": {"type": "string", "description": "Título del tratamiento (max 20 caracteres)", "example": "Tratamiento Cardio"},
+                    "descripcion": {"type": "string", "description": "Descripción detallada del tratamiento", "example": "Tratamiento para pacientes con problemas cardíacos leves"}
+                },
+                "required": ["doctor", "titulo", "descripcion"]
+            }
+        },
+        responses={
+            201: OpenApiResponse(description="Tratamiento creado exitosamente"),
+            400: OpenApiResponse(description="Error de validación en los datos"),
+        }
+    )
     def post(self, request): 
 
         #validar con el serializador 
@@ -256,6 +306,29 @@ class TratamientoView(APIView) :
                 'status': 400, 
             }, status=status.HTTP_400_BAD_REQUEST); 
 
+    @extend_schema(
+        summary="Actualizar un tratamiento por UUID",
+        description="Actualiza los campos de un tratamiento existente. Se debe enviar el UUID en la URL.",
+        parameters=[
+            OpenApiParameter(name="id", type=OpenApiTypes.UUID, location=OpenApiParameter.PATH, description="UUID del tratamiento a actualizar", required=True),
+        ],
+        request={
+            "application/json": {
+                "type": "object",
+                "properties": {
+                    "doctor": {"type": "integer", "description": "ID del doctor", "example": 1},
+                    "titulo": {"type": "string", "example": "Tratamiento Actualizado"},
+                    "descripcion": {"type": "string", "example": "Descripción actualizada del tratamiento"}
+                },
+                "required": ["doctor", "titulo", "descripcion"]
+            }
+        },
+        responses={
+            200: OpenApiResponse(description="Tratamiento actualizado exitosamente"),
+            400: OpenApiResponse(description="Error de validación"),
+            500: OpenApiResponse(description="Error interno del servidor"),
+        }
+    )
     def put(self, request, id): 
 
         try: 
@@ -286,6 +359,17 @@ class TratamientoView(APIView) :
                 'status': 500, 
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR); 
 
+    @extend_schema(
+        summary="Eliminar un tratamiento (borrado lógico)",
+        description="Desactiva un tratamiento (is_active=False). No lo elimina de la base de datos.",
+        parameters=[
+            OpenApiParameter(name="id", type=OpenApiTypes.UUID, location=OpenApiParameter.PATH, description="UUID del tratamiento a eliminar", required=True),
+        ],
+        responses={
+            200: OpenApiResponse(description="Tratamiento eliminado exitosamente"),
+            500: OpenApiResponse(description="Error al eliminar el tratamiento"),
+        }
+    )
     def delete(self, request, id): 
 
         try: 
@@ -310,9 +394,21 @@ class TratamientoView(APIView) :
 
 @extend_schema(tags=['Pacientes-Tratamiento'])
 class PacienteTratamientoView(APIView): 
-
+    permission_classes = [IsAuthenticated]
     serializer_class = PacienteTratamientoSerializer;
 
+    @extend_schema(
+        summary="Obtener asignaciones paciente-tratamiento",
+        description="Si se envía un ID, retorna una sola asignación. Si no, retorna todas.",
+        parameters=[
+            OpenApiParameter(name="id", type=OpenApiTypes.INT, location=OpenApiParameter.PATH, description="ID de la asignación paciente-tratamiento (opcional)", required=False),
+        ],
+        responses={
+            200: OpenApiResponse(description="Asignación(es) obtenida(s) exitosamente"),
+            404: OpenApiResponse(description="La asignación no existe"),
+            500: OpenApiResponse(description="Error interno del servidor"),
+        }
+    )
     def get(self, request, id=None): 
 
         if id is not None : 
@@ -353,6 +449,26 @@ class PacienteTratamientoView(APIView):
                 'status': 200, 
             }, status=status.HTTP_200_OK); 
     
+    @extend_schema(
+        summary="Crear una asignación paciente-tratamiento",
+        description="Asocia un paciente con un tratamiento existente.",
+        request={
+            "application/json": {
+                "type": "object",
+                "properties": {
+                    "paciente": {"type": "integer", "description": "ID del paciente", "example": 1},
+                    "tratamiento": {"type": "string", "format": "uuid", "description": "UUID del tratamiento", "example": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"},
+                    "is_active": {"type": "boolean", "description": "Estado activo (default: true)", "example": True}
+                },
+                "required": ["paciente", "tratamiento"]
+            }
+        },
+        responses={
+            201: OpenApiResponse(description="Asignación creada exitosamente"),
+            400: OpenApiResponse(description="Error de validación"),
+            500: OpenApiResponse(description="Error interno del servidor"),
+        }
+    )
     def post(self, request): 
 
         try: 
@@ -382,6 +498,30 @@ class PacienteTratamientoView(APIView):
                 'status': 500, 
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR); 
     
+    @extend_schema(
+        summary="Actualizar una asignación paciente-tratamiento",
+        description="Actualiza una asignación existente por su ID.",
+        parameters=[
+            OpenApiParameter(name="id", type=OpenApiTypes.INT, location=OpenApiParameter.PATH, description="ID de la asignación a actualizar", required=True),
+        ],
+        request={
+            "application/json": {
+                "type": "object",
+                "properties": {
+                    "paciente": {"type": "integer", "description": "ID del paciente", "example": 1},
+                    "tratamiento": {"type": "string", "format": "uuid", "description": "UUID del tratamiento", "example": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"},
+                    "is_active": {"type": "boolean", "description": "Estado activo", "example": True}
+                },
+                "required": ["paciente", "tratamiento"]
+            }
+        },
+        responses={
+            200: OpenApiResponse(description="Asignación actualizada exitosamente"),
+            400: OpenApiResponse(description="Error de validación"),
+            404: OpenApiResponse(description="La asignación no existe"),
+            500: OpenApiResponse(description="Error interno del servidor"),
+        }
+    )
     def put(self, request, id): 
 
         try: 
@@ -418,6 +558,18 @@ class PacienteTratamientoView(APIView):
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR); 
     
 
+    @extend_schema(
+        summary="Eliminar asignación paciente-tratamiento (borrado lógico)",
+        description="Desactiva la asignación (is_active=False). No la elimina de la base de datos.",
+        parameters=[
+            OpenApiParameter(name="id", type=OpenApiTypes.INT, location=OpenApiParameter.PATH, description="ID de la asignación a eliminar", required=True),
+        ],
+        responses={
+            200: OpenApiResponse(description="Asignación eliminada exitosamente"),
+            404: OpenApiResponse(description="La asignación no existe"),
+            500: OpenApiResponse(description="Error al eliminar"),
+        }
+    )
     def delete(self, request, id): 
 
         try: 
@@ -444,11 +596,22 @@ class PacienteTratamientoView(APIView):
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR); 
 
 @extend_schema(tags=['Tratamientos-Medicamentos'])
-
 class TratamientoMedicamentoView(APIView): 
-
+    permission_classes = [IsAuthenticated]; 
     serializer_class = TratamientoMedicamentoSerializer;
 
+    @extend_schema(
+        summary="Obtener asignaciones tratamiento-medicamento",
+        description="Si se envía un ID, retorna una sola asignación. Si no, retorna todas.",
+        parameters=[
+            OpenApiParameter(name="id", type=OpenApiTypes.INT, location=OpenApiParameter.PATH, description="ID de la asignación (opcional)", required=False),
+        ],
+        responses={
+            200: OpenApiResponse(description="Asignación(es) obtenida(s) exitosamente"),
+            404: OpenApiResponse(description="La asignación no existe"),
+            500: OpenApiResponse(description="Error interno del servidor"),
+        }
+    )
     def get(self, request, id=None):
 
         try: 
@@ -487,6 +650,28 @@ class TratamientoMedicamentoView(APIView):
                 'status': 500, 
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR); 
     
+    @extend_schema(
+        summary="Crear una asignación tratamiento-medicamento",
+        description="Asocia un medicamento a un tratamiento con dosis, horario e instrucciones.",
+        request={
+            "application/json": {
+                "type": "object",
+                "properties": {
+                    "tratamiento": {"type": "string", "format": "uuid", "description": "UUID del tratamiento", "example": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"},
+                    "medicamento": {"type": "integer", "description": "ID del medicamento", "example": 1},
+                    "dosis": {"type": "string", "description": "Dosis del medicamento (max 20 caracteres)", "example": "500mg"},
+                    "horario": {"type": "string", "description": "Horario de toma (max 20 caracteres)", "example": "Cada 8 horas"},
+                    "instrucciones": {"type": "string", "description": "Instrucciones de uso", "example": "Tomar después de cada comida con un vaso de agua"}
+                },
+                "required": ["tratamiento", "medicamento", "dosis", "horario", "instrucciones"]
+            }
+        },
+        responses={
+            201: OpenApiResponse(description="Asignación creada exitosamente"),
+            400: OpenApiResponse(description="Error de validación"),
+            500: OpenApiResponse(description="Error interno del servidor"),
+        }
+    )
     def post(self, request): 
 
         try: 
@@ -520,6 +705,32 @@ class TratamientoMedicamentoView(APIView):
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR); 
     
 
+    @extend_schema(
+        summary="Actualizar una asignación tratamiento-medicamento",
+        description="Actualiza una asignación existente por su ID.",
+        parameters=[
+            OpenApiParameter(name="id", type=OpenApiTypes.INT, location=OpenApiParameter.PATH, description="ID de la asignación a actualizar", required=True),
+        ],
+        request={
+            "application/json": {
+                "type": "object",
+                "properties": {
+                    "tratamiento": {"type": "string", "format": "uuid", "description": "UUID del tratamiento", "example": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"},
+                    "medicamento": {"type": "integer", "description": "ID del medicamento", "example": 1},
+                    "dosis": {"type": "string", "example": "1000mg"},
+                    "horario": {"type": "string", "example": "Cada 12 horas"},
+                    "instrucciones": {"type": "string", "example": "Tomar en ayunas"}
+                },
+                "required": ["tratamiento", "medicamento", "dosis", "horario", "instrucciones"]
+            }
+        },
+        responses={
+            200: OpenApiResponse(description="Asignación actualizada exitosamente"),
+            400: OpenApiResponse(description="Error de validación"),
+            404: OpenApiResponse(description="La asignación no existe"),
+            500: OpenApiResponse(description="Error interno del servidor"),
+        }
+    )
     def put(self, request, id): 
 
         try: 
@@ -555,6 +766,18 @@ class TratamientoMedicamentoView(APIView):
                 'status': 500, 
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR);
 
+    @extend_schema(
+        summary="Eliminar asignación tratamiento-medicamento (borrado físico)",
+        description="Elimina permanentemente la relación entre un tratamiento y un medicamento.",
+        parameters=[
+            OpenApiParameter(name="id", type=OpenApiTypes.INT, location=OpenApiParameter.PATH, description="ID de la asignación a eliminar", required=True),
+        ],
+        responses={
+            200: OpenApiResponse(description="Asignación eliminada exitosamente"),
+            404: OpenApiResponse(description="La asignación no existe"),
+            500: OpenApiResponse(description="Error al eliminar"),
+        }
+    )
     def delete(self, request, id):
         try:
             with transaction.atomic():
