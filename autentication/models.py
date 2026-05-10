@@ -30,7 +30,6 @@ class UsuarioManager(BaseUserManager):
 
 class Usuario(AbstractBaseUser, PermissionsMixin):
     """Modelo de usuario personalizado que usa email como identificador único."""
-
     email = models.EmailField('correo electrónico', unique=True)
     google_id = models.CharField('ID de Google', max_length=255, blank=True, null=True, unique=True)
     is_doctor = models.BooleanField('es doctor', default=False)

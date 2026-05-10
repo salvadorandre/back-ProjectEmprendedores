@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test - Google Auth</title>
+    <script src="https://accounts.google.com/gsi/client" async></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: #1a1a2e;
+            color: #eee;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .container {
+            background: #16213e;
+            border-radius: 16px;
+            padding: 40px;
+            max-width: 500px;
+            width: 90%;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 8px;
+            font-size: 1.5rem;
+        }
+        .subtitle {
+            text-align: center;
+            color: #888;
+            margin-bottom: 30px;
+            font-size: 0.9rem;
+        }
+        .google-btn-container {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+        #result {
+            margin-top: 20px;
+            padding: 16px;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 0.8rem;
+            white-space: pre-wrap;
+            word-break: break-all;
+            display: none;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .success {
+            background: #0a3d0a;
+            border: 1px solid #2ecc71;
+            display: block !important;
+        }
+        .error {
+            background: #3d0a0a;
+            border: 1px solid #e74c3c;
+            display: block !important;
+        }
+        .loading {
+            background: #1a1a3e;
+            border: 1px solid #3498db;
+            display: block !important;
+            text-align: center;
+        }
+        .step {
+            padding: 8px 0;
+            border-bottom: 1px solid #333;
+        }
+        .step:last-child { border-bottom: none; }
+        .step-label { color: #888; font-size: 0.75rem; }
+        .step-value { color: #2ecc71; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="google-btn-container">
+            <div id="g_id_onload"
+                 data-client_id="737774127807-doi52eh6mcasbn25ada8n8j4sfdrubda.apps.googleusercontent.com"
+                 data-callback="handleGoogleResponse"
+                 data-auto_prompt="false">
+            </div>
+            <div class="g_id_signin"
+                 data-type="standard"
+                 data-size="large"
+                 data-theme="filled_blue"
+                 data-text="signin_with"
+                 data-shape="rectangular"
+                 data-logo_alignment="left">
+            </div>
+        </div>
+
+        <div id="result"></div>
+    </div>
+
+    <script>
+        const API_URL = 'http://127.0.0.1:8000/api/v1/auth/google/';
+        const resultDiv = document.getElementById('result');
+
+        async function handleGoogleResponse(response) {
+            // Mostrar loading
+            resultDiv.className = 'loading';
+            resultDiv.textContent = '⏳ Enviando token al backend...';
+
+            try {
+                const res = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        id_token: response.credential
+                    })
+                });
+
+                const data = await res.json();
+
+                if (res.ok) {
+                    resultDiv.className = 'success';
+                    resultDiv.innerHTML = `
+<div class="step">
+  <div class="step-label">✅ STATUS</div>
+  <div class="step-value">${res.status} - ${data.message}</div>
+</div>
+<div class="step">
+  <div class="step-label">👤 USUARIO</div>
+  <div class="step-value">${JSON.stringify(data.user, null, 2)}</div>
+</div>
+<div class="step">
+  <div class="step-label">🆕 ¿NUEVO?</div>
+  <div class="step-value">${data.is_new_user ? 'Sí - Usuario creado' : 'No - Ya existía'}</div>
+</div>
+<div class="step">
+  <div class="step-label">🔑 ACCESS TOKEN</div>
+  <div class="step-value">${data.access}</div>
+</div>
+<div class="step">
+  <div class="step-label">🔄 REFRESH TOKEN</div>
+  <div class="step-value">${data.refresh}</div>
+</div>`;
+                } else {
+                    resultDiv.className = 'error';
+                    resultDiv.textContent = `❌ Error ${res.status}:\n${JSON.stringify(data, null, 2)}`;
+                }
+
+            } catch (err) {
+                resultDiv.className = 'error';
+                resultDiv.textContent = `❌ Error de conexión:\n${err.message}\n\n¿Está corriendo el servidor Django?`;
+            }
+        }
+    </script>
+</body>
+</html>

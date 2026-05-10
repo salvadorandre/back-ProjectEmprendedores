@@ -1,6 +1,6 @@
 
 from dataclasses import field
-from .models import Tratamiento, Medicamento, TratamientoMedicamento, PacienteTratamiento
+from .models import Tratamiento, Medicamento, TratamientoMedicamento, PacienteTratamiento, RegistroMedication
 from rest_framework import serializers
 from datetime import date
 
@@ -45,6 +45,23 @@ class TratamientoSerializer(serializers.ModelSerializer):
         if value is None: 
             raise serializers.ValidationError('El doctor del tratamiento es requerido')
         return value 
+    def to_representation(self, instance):
+        
+        representation = super().to_representation(instance)
+
+        representation['doctor'] = {
+            'id': instance.doctor.id,
+            'especialidad': instance.doctor.especialidad,
+            'colegiado': instance.doctor.colegiado,
+            'usuario': {
+                'id': instance.doctor.user.id,
+                'email': instance.doctor.user.email,
+                'is_active': instance.doctor.user.is_active
+            }
+        }
+        
+        return representation
+
 
 class PacienteTratamientoSerializer(serializers.ModelSerializer): 
     
@@ -95,3 +112,60 @@ class TratamientoMedicamentoSerializer(serializers.ModelSerializer):
         return value; 
 
 
+class RegistroMedicationSerializer(serializers.ModelSerializer):
+
+    class Meta: 
+        model = RegistroMedication
+        fields = '__all__'
+
+    def to_representation(self, instance): 
+
+        representation = super().to_representation(instance)
+
+        representation['tratamiento_medicamento'] = {
+            'id': instance.tratamiento_medicamento.id,
+            'tratamiento': instance.tratamiento_medicamento.tratamiento.titulo,
+            'medicamento': instance.tratamiento_medicamento.medicamento.nombre_medicamento,
+            'dosis': instance.tratamiento_medicamento.dosis,
+            'horario': instance.tratamiento_medicamento.horario,
+            'instrucciones': instance.tratamiento_medicamento.instrucciones,
+        };
+
+        representation['paciente'] = {
+            'id': instance.paciente.id,
+            'user': instance.paciente.user.email, 
+            'fecha_nac': instance.paciente.fecha_nac,
+            'descripcion': instance.paciente.descripcion,
+            'telefono': instance.paciente.telefono,
+            'user': {
+                'id': instance.paciente.user.id,
+                'email': instance.paciente.user.email,
+            } 
+        } 
+        return representation
+
+    def validate_paciente_tratamiento(self, value): 
+        if value is None: 
+            raise serializers.ValidationError('El paciente_tratamiento es requerido');
+        
+        return value;
+    
+    def validate_paciente(self, value): 
+        if value is None: 
+            raise serializers.ValidationError('El paciente es requerido');
+        
+        return value; 
+    
+    def validate_fecha_toma(self, value):
+        if value is None: 
+            raise serializers.ValidationError('La fecha de toma es requerida');
+        if value > date.today(): 
+            raise serializers.ValidationError('La fecha de toma no puede ser mayor a la fecha actual');
+        return value; 
+    
+    def validate_hora(self, value): 
+        if value is None: 
+            raise serializers.ValidationError('La hora es requerida');
+        return value; 
+    
+    

@@ -1,3 +1,4 @@
+import os
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -6,6 +7,8 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import authenticate
 from django.db import transaction
 from drf_spectacular.utils import extend_schema, OpenApiResponse
+from google.oauth2 import id_token
+from google.auth.transport import requests as google_requests
 from .models import Usuario
 from .serializers import UsuarioSerializer
 from clinix.models import Doctor, Paciente;
@@ -272,6 +275,126 @@ class LogoutView(APIView):
             token.blacklist();
             return Response({'message': 'Logout exitoso'}, status=status.HTTP_200_OK)
         except Exception as e: 
+            return Response({
+                'error': str(e),
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR);
+
+
+@extend_schema(tags=['Autenticación - Google'])
+class GoogleAuthView(APIView):
+
+    permission_classes = [AllowAny];
+
+    @extend_schema(
+        summary="Autenticación con Google",
+        description=(
+            "Recibe el `id_token` que el frontend/app obtiene tras el flujo de Google Sign-In. "
+            "El backend verifica el token con Google, y si es válido:\n"
+            "- Si el usuario ya existe → inicia sesión\n"
+            "- Si el usuario no existe → lo crea automáticamente\n\n"
+            "Retorna tokens JWT (access + refresh) para usar en los demás endpoints."
+        ),
+        request={
+            "application/json": {
+                "type": "object",
+                "properties": {
+                    "id_token": {
+                        "type": "string",
+                        "description": "Token de ID obtenido del flujo de Google Sign-In",
+                        "example": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9..."
+                    }
+                },
+                "required": ["id_token"]
+            }
+        },
+        responses={
+            200: OpenApiResponse(
+                description="Inicio de sesión exitoso (usuario existente)",
+                response={
+                    "type": "object",
+                    "properties": {
+                        "message": {"type": "string", "example": "Inicio de sesión con Google exitoso"},
+                        "is_new_user": {"type": "boolean", "example": False},
+                        "user": {"type": "object"},
+                        "refresh": {"type": "string"},
+                        "access": {"type": "string"}
+                    }
+                }
+            ),
+            201: OpenApiResponse(description="Usuario creado exitosamente con Google"),
+            400: OpenApiResponse(description="Token no proporcionado"),
+            401: OpenApiResponse(description="Token de Google inválido o expirado"),
+            500: OpenApiResponse(description="Error interno del servidor"),
+        }
+    )
+    def post(self, request):
+        token = request.data.get('id_token');
+
+        if not token:
+            return Response({
+                'error': 'El id_token de Google es requerido',
+            }, status=status.HTTP_400_BAD_REQUEST);
+
+        try:
+            # Verificar el token con Google
+            google_client_id = os.environ.get('GOOGLE_CLIENT_ID')
+            idinfo = id_token.verify_oauth2_token(
+                token,
+                google_requests.Request(),
+                google_client_id
+            )
+
+            # Extraer información del usuario de Google
+            google_id = idinfo['sub']  # ID único de Google
+            email = idinfo.get('email')
+            
+            if not email:
+                return Response({
+                    'error': 'El token de Google no contiene un email',
+                }, status=status.HTTP_400_BAD_REQUEST);
+
+            # Buscar si el usuario ya existe (por google_id o por email)
+            user = None
+            is_new_user = False
+
+            try:
+                # Primero buscar por google_id
+                user = Usuario.objects.get(google_id=google_id)
+            except Usuario.DoesNotExist:
+                try:
+                    # Si no tiene google_id, buscar por email y vincular
+                    user = Usuario.objects.get(email=email)
+                    user.google_id = google_id
+                    user.save()
+                except Usuario.DoesNotExist:
+                    # El usuario no existe, crearlo
+                    with transaction.atomic():
+                        user = Usuario.objects.create_user(
+                            email=email,
+                            password=None,  # Sin contraseña, se autentica con Google
+                            google_id=google_id
+                        )
+                        is_new_user = True
+
+            # Generar tokens JWT
+            refresh = RefreshToken.for_user(user)
+            serializer = UsuarioSerializer(user)
+
+            return Response({
+                'message': 'Usuario creado con Google exitosamente' if is_new_user else 'Inicio de sesión con Google exitoso',
+                'is_new_user': is_new_user,
+                'user': serializer.data,
+                'refresh': str(refresh),
+                'access': str(refresh.access_token),
+            }, status=status.HTTP_201_CREATED if is_new_user else status.HTTP_200_OK)
+
+        except ValueError:
+            # Token inválido
+            return Response({
+                'error': 'Token de Google inválido o expirado',
+            }, status=status.HTTP_401_UNAUTHORIZED);
+
+        except Exception as e:
             return Response({
                 'error': str(e),
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR);
