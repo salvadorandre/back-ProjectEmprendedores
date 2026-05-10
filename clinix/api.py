@@ -8,8 +8,9 @@ from rest_framework.views import APIView
 
 from drf_spectacular.utils import extend_schema, OpenApiResponse, OpenApiParameter
 from drf_spectacular.types import OpenApiTypes
-from .serializers import TratamientoSerializer, MedicamentoSerializer, PacienteTratamientoSerializer, TratamientoMedicamentoSerializer; 
-from .models import Medicamento, Tratamiento, PacienteTratamiento, TratamientoMedicamento
+from .serializers import TratamientoSerializer, MedicamentoSerializer, PacienteTratamientoSerializer, TratamientoMedicamentoSerializer
+from .models import Medicamento, Tratamiento, PacienteTratamiento, TratamientoMedicamento, RegistroMedication, Paciente
+from django.utils import timezone
 #Integracion de los endpoints para el manejo de las citas 
 
 # Endpoint para los medicamentos 
@@ -214,7 +215,7 @@ class MedicamentoView(APIView):
 
 @extend_schema(tags=['Tratamientos'])
 class TratamientoView(APIView) : 
-    permission_classes = [IsAuthenticated]    
+    #permission_classes = [IsAuthenticated]    
     serializer_class = TratamientoSerializer
 
     @extend_schema(
@@ -802,4 +803,3 @@ class TratamientoMedicamentoView(APIView):
                 'status': 500,
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-            

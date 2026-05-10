@@ -61,7 +61,7 @@ class RegistroMedication(models.Model):
     paciente = models.ForeignKey(Paciente, on_delete=models.CASCADE)
     tratamiento_medicamento = models.ForeignKey(TratamientoMedicamento, on_delete=models.CASCADE)
     fecha_toma = models.DateField()
-    is_tomado = models.BooleanField(default=False)
+    estado = models.CharField(max_length=5, default=1) # 1 estado registrado, 2, tomado, 3, atrasado 
     hora = models.TimeField()
 
     def __str__(self): 

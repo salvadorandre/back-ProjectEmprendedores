@@ -1,6 +1,6 @@
 
 from django.urls import path, include
-from .api import MedicamentoView, TratamientoView, PacienteTratamientoView, TratamientoMedicamentoView; 
+from .api import MedicamentoView, TratamientoView, PacienteTratamientoView, TratamientoMedicamentoView
 
 urlpatterns = [
 
