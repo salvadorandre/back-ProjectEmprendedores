@@ -101,6 +101,11 @@ class TratamientoMedicamentoSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError('La dosis es requerida');
         return value;
 
+    def validate_frecuencia(self, value): 
+        if value is None: 
+            raise serializers.ValidationError('La frecuencia es requerida');
+        return value;
+
     def validate_horario(self, value): 
         if value is None: 
             raise serializers.ValidationError('El horario es requerido');
@@ -127,6 +132,7 @@ class RegistroMedicationSerializer(serializers.ModelSerializer):
             'tratamiento': instance.tratamiento_medicamento.tratamiento.titulo,
             'medicamento': instance.tratamiento_medicamento.medicamento.nombre_medicamento,
             'dosis': instance.tratamiento_medicamento.dosis,
+            'frecuencia': instance.tratamiento_medicamento.frecuencia,
             'horario': instance.tratamiento_medicamento.horario,
             'instrucciones': instance.tratamiento_medicamento.instrucciones,
         };
