@@ -51,6 +51,7 @@ class TratamientoMedicamento(models.Model):
     tratamiento = models.ForeignKey(Tratamiento, on_delete=models.CASCADE)
     medicamento = models.ForeignKey(Medicamento, on_delete=models.CASCADE)
     dosis = models.CharField(max_length=20)
+    frecuencia = models.CharField(max_length=30, default='Diario')
     horario = models.CharField(max_length=20)
     instrucciones = models.TextField()
 
@@ -63,6 +64,8 @@ class RegistroMedication(models.Model):
     fecha_toma = models.DateField()
     estado = models.CharField(max_length=5, default=1) # 1 estado registrado, 2, tomado, 3, atrasado 
     hora = models.TimeField()
+    foto = models.ImageField(upload_to='registro_medicacion', null=True, blank=True)
+    observaciones = models.TextField(null=True, blank=True)
 
     def __str__(self): 
         return f"{self.paciente.user.email} - {self.tratamiento_medicamento.medicamento.nombre_medicamento}" 

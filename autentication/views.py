@@ -337,11 +337,16 @@ class GoogleAuthView(APIView):
 
         try:
             # Verificar el token con Google
-            google_client_id = os.environ.get('GOOGLE_CLIENT_ID')
+            google_client_id_web = os.environ.get('GOOGLE_CLIENT_ID')
+            google_client_id_android = os.environ.get('GOOGLE_CLIENT_ID_ANDROID')
+            
+            # Lista de IDs permitidos (puedes añadir más como iOS si fuera necesario)
+            valid_audiences = [id for id in [google_client_id_web, google_client_id_android] if id]
+            
             idinfo = id_token.verify_oauth2_token(
                 token,
                 google_requests.Request(),
-                google_client_id
+                valid_audiences
             )
 
             # Extraer información del usuario de Google
