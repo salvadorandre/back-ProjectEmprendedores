@@ -64,6 +64,11 @@ class RegisterDoctorView(APIView):
                 return Response({
                     'message': 'Doctor creado exitosamente',
                     'user_id': user.id,
+                    'doctor_id': {
+                        'id': doctor.id,
+                        'especialidad': doctor.especialidad,
+                        'colegiado': doctor.colegiado,
+                    },
                     'refresh': str(refresh),
                     'access': str(refresh.access_token),
                 }, status=status.HTTP_201_CREATED);
@@ -126,6 +131,7 @@ class RegisterPacienteView(APIView):
                 return Response({
                     'message': 'Paciente creado exitosamente',
                     'user_id': user.id,
+                    'paciente_id': paciente.id,
                     'refresh': str(refresh),
                     'access': str(refresh.access_token),
                 }, status=status.HTTP_201_CREATED);
@@ -231,8 +237,33 @@ class LoginView(APIView):
             }, status=status.HTTP_400_BAD_REQUEST);
         
         if user: 
-            refresh = RefreshToken.for_user(user); 
-            serializer = UsuarioSerializer(user);
+            refresh = RefreshToken.for_user(user)
+            serializer = UsuarioSerializer(user)
+            
+            doctor = Doctor.objects.filter(user=user).first()
+            if doctor: 
+                return Response({
+                    'user': serializer.data,
+                    'doctor_id': {
+                        'id': doctor.id,
+                        'especialidad': doctor.especialidad,
+                        'colegiado': doctor.colegiado,
+                    },
+                    'refresh': str(refresh),
+                    'access': str(refresh.access_token),
+                }, status=status.HTTP_200_OK)
+            
+            paciente = Paciente.objects.filter(user=user).first()
+            if paciente: 
+                return Response({
+                    'user': serializer.data,
+                    'paciente_id': {
+                        'id': paciente.id,
+                    },
+                    'refresh': str(refresh),
+                    'access': str(refresh.access_token),
+                }, status=status.HTTP_200_OK)
+            
             return Response({
                 'user': serializer.data,
                 'refresh': str(refresh),
@@ -385,6 +416,38 @@ class GoogleAuthView(APIView):
             refresh = RefreshToken.for_user(user)
             serializer = UsuarioSerializer(user)
 
+            try:
+                doctor = Doctor.objects.get(user=user)
+            except Doctor.DoesNotExist:
+                doctor = None
+            
+            try:
+                paciente = Paciente.objects.get(user=user)
+            except Paciente.DoesNotExist:
+                paciente = None
+
+            if doctor: 
+                return Response({
+                    'user': serializer.data,
+                    'doctor_id': {
+                        'id': doctor.id,
+                        'especialidad': doctor.especialidad,
+                        'colegiado': doctor.colegiado,
+                    },
+                    'refresh': str(refresh),
+                    'access': str(refresh.access_token),
+                }, status=status.HTTP_200_OK);
+            
+            if paciente: 
+                return Response({
+                    'user': serializer.data,
+                    'paciente_id': {
+                        'id': paciente.id,
+                    },
+                    'refresh': str(refresh),
+                    'access': str(refresh.access_token),
+                }, status=status.HTTP_200_OK);
+                
             return Response({
                 'message': 'Usuario creado con Google exitosamente' if is_new_user else 'Inicio de sesión con Google exitoso',
                 'is_new_user': is_new_user,
