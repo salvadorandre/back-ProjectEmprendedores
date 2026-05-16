@@ -60,7 +60,7 @@ class MedicamentoView(APIView):
                     'id': med.id, 
                     'nombre_medicamento': med.nombre_medicamento, 
                     'descripcion': med.descripcion, 
-                    'imagen': imagen_url,
+                    'imagen': med.imagen,
                 }
                 return Response({
                     'medicamento': data, 
@@ -78,20 +78,12 @@ class MedicamentoView(APIView):
         data = []
 
         for med in medicamentos: 
-            # Protección similar para la lista
-            imagen_url = None
-            if med.imagen and hasattr(med.imagen, 'url'):
-                try:
-                    imagen_url = med.imagen.url
-                except ValueError:
-                    imagen_url = None
-
             data.append({
                 'id': med.id, 
                 'doctor': med.doctor.id, 
                 'nombre_medicamento': med.nombre_medicamento, 
                 'descripcion': med.descripcion, 
-                'imagen': imagen_url,
+                'imagen': med.imagen,
             })
 
         return Response({
