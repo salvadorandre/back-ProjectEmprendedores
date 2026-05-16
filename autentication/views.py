@@ -242,6 +242,55 @@ class LoginView(APIView):
             
 
 @extend_schema(tags=['Autenticación - Sesión'])
+class TokenRefreshView(APIView):
+    permission_classes = [AllowAny]
+
+    @extend_schema(
+        summary="Refrescar token de acceso",
+        description="Recibe un token de refresco y devuelve un nuevo token de acceso.",
+        request={
+            "application/json": {
+                "type": "object",
+                "properties": {
+                    "refresh": {"type": "string", "description": "Token de refresco", "example": "eyJ0eXAiOiJKV1QiLCJ..."}
+                },
+                "required": ["refresh"]
+            }
+        },
+        responses={
+            200: OpenApiResponse(description="Nuevo token de acceso generado"),
+            400: OpenApiResponse(description="Token no proporcionado"),
+            401: OpenApiResponse(description="Token de refresco inválido o expirado"),
+        }
+    )
+    def post(self, request):
+        refresh_token = request.data.get('refresh')
+
+        if not refresh_token:
+            return Response({
+                'error': 'El token de refresco es requerido',
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            token = RefreshToken(refresh_token)
+            user = token.user
+            access = str(token.access_token)
+            token.blacklist()
+            serializer = UsuarioSerializer(user)
+            return Response({
+                'message': 'Token refrescado exitosamente',
+                'user': serializer.data,
+                'refresh': str(token),
+                'access': access,
+            }, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            print(f'[TokenRefresh] Error: {e}')
+            return Response({
+                'error': f'Token de refresco inválido o expirado: {str(e)}',
+            }, status=status.HTTP_401_UNAUTHORIZED)
+
+@extend_schema(tags=['Autenticación - Sesión'])
 class LogoutView(APIView): 
     permission_classes = [IsAuthenticated]; 
 
