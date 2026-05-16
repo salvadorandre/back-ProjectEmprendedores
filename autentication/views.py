@@ -239,7 +239,49 @@ class LoginView(APIView):
                 'access': str(refresh.access_token),
             }, status=status.HTTP_200_OK)
 
-            
+@extend_schema(tags=['Autenticación - Sesión'])
+class MockLoginView(APIView):
+    authentication_classes = []
+    permission_classes = [AllowAny]
+
+    @extend_schema(
+        summary="Mock login - devuelve tokens para el primer usuario",
+        description="Endpoint de prueba que devuelve tokens JWT para el primer usuario en la BD sin requerir credenciales. Acepta los mismos argumentos que Google pero son ignorados.",
+        request={
+            "application/json": {
+                "type": "object",
+                "properties": {
+                    "id_token": {"type": "string", "description": "Ignorado en mock"}
+                }
+            }
+        },
+        responses={
+            200: OpenApiResponse(description="Tokens del primer usuario"),
+            404: OpenApiResponse(description="No hay usuarios en la base de datos"),
+        }
+    )
+    def post(self, request):
+        try:
+            user = Usuario.objects.first()
+            if not user:
+                return Response({
+                    'error': 'No hay usuarios en la base de datos',
+                }, status=status.HTTP_404_NOT_FOUND)
+
+            refresh = RefreshToken.for_user(user)
+            serializer = UsuarioSerializer(user)
+            return Response({
+                'message': 'Mock login exitoso',
+                'user': serializer.data,
+                'refresh': str(refresh),
+                'access': str(refresh.access_token),
+            }, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            print(f'[MockLogin] Error: {e}')
+            return Response({
+                'error': str(e),
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 @extend_schema(tags=['Autenticación - Sesión'])
 class TokenRefreshView(APIView):
