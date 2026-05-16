@@ -9,7 +9,7 @@ from rest_framework.views import APIView
 from drf_spectacular.utils import extend_schema, OpenApiResponse, OpenApiParameter
 from drf_spectacular.types import OpenApiTypes
 from .serializers import TratamientoSerializer, MedicamentoSerializer, PacienteTratamientoSerializer, TratamientoMedicamentoSerializer
-from .models import Medicamento, Tratamiento, PacienteTratamiento, TratamientoMedicamento, RegistroMedication, Paciente
+from .models import Medicamento, Tratamiento, PacienteTratamiento, TratamientoMedicamento, RegistroMedication, Paciente, Doctor
 from django.utils import timezone
 from datetime import timedelta
 from drf_spectacular.utils import inline_serializer
@@ -42,6 +42,14 @@ class MedicamentoView(APIView):
         }
     )
     def get(self, request, id=None): 
+        try:
+            doctor = Doctor.objects.get(user=request.user)
+        except Doctor.DoesNotExist:
+            return Response({
+                'error': 'El usuario no tiene un perfil de doctor asociado',
+                'status': 403
+            }, status=status.HTTP_403_FORBIDDEN)
+
         # Si envían un ID, retornamos un solo elemento
         if id is not None:
             try:
@@ -60,12 +68,12 @@ class MedicamentoView(APIView):
                 }, status=status.HTTP_200_OK)
             except Medicamento.DoesNotExist:
                 return Response({
-                    'error': 'El medicamento no existe',
+                    'error': 'El medicamento no existe o no tienes permiso para verlo',
                     'status': 404
                 }, status=status.HTTP_404_NOT_FOUND)
 
-        # Si NO envían un ID, listamos todos
-        medicamentos = Medicamento.objects.all()
+        # Si NO envían un ID, listamos solo los del doctor logueado
+        medicamentos = Medicamento.objects.filter(doctor=doctor)
         data = []
 
         for med in medicamentos: 
