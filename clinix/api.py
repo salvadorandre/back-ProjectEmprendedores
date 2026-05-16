@@ -56,11 +56,19 @@ class MedicamentoView(APIView):
         if id is not None:
             try:
                 med = Medicamento.objects.get(id=id, doctor=doctor, is_active=True)
+                # Verificamos si imagen es un archivo (tiene atributo url) y no un string
+                imagen_url = None
+                if med.imagen and hasattr(med.imagen, 'url'):
+                    try:
+                        imagen_url = med.imagen.url
+                    except ValueError:
+                        imagen_url = None
+
                 data = {
                     'id': med.id, 
                     'nombre_medicamento': med.nombre_medicamento, 
                     'descripcion': med.descripcion, 
-                    'imagen': med.imagen.url if med.imagen else None,
+                    'imagen': imagen_url,
                 }
                 return Response({
                     'medicamento': data, 
@@ -78,12 +86,20 @@ class MedicamentoView(APIView):
         data = []
 
         for med in medicamentos: 
+            # Protección similar para la lista
+            imagen_url = None
+            if med.imagen and hasattr(med.imagen, 'url'):
+                try:
+                    imagen_url = med.imagen.url
+                except ValueError:
+                    imagen_url = None
+
             data.append({
                 'id': med.id, 
                 'doctor': med.doctor.id, 
                 'nombre_medicamento': med.nombre_medicamento, 
                 'descripcion': med.descripcion, 
-                'imagen': med.imagen.url if med.imagen else None,
+                'imagen': imagen_url,
             })
 
         return Response({
@@ -187,8 +203,10 @@ class MedicamentoView(APIView):
                 medicamento.nombre_medicamento = data.get('nombre_medicamento', medicamento.nombre_medicamento) 
                 medicamento.descripcion = data.get('descripcion', medicamento.descripcion) 
                 
-                if 'imagen' in data:
-                    medicamento.imagen = data['imagen']
+                # SOLO actualizamos si es un archivo, no si es un string (URL)
+                nueva_imagen = data.get('imagen')
+                if nueva_imagen and not isinstance(nueva_imagen, str):
+                    medicamento.imagen = nueva_imagen
                 
                 medicamento.save() 
 
