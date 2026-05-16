@@ -33,6 +33,7 @@ class Tratamiento(models.Model):
     doctor = models.ForeignKey(Doctor, on_delete=models.CASCADE)
     titulo = models.CharField(max_length=20)
     descripcion = models.TextField()
+    is_active = models.BooleanField(default=True)
     uuid = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False) 
     created_at = models.DateTimeField(auto_now_add=True) 
     updated_at = models.DateTimeField(auto_now=True) 
