@@ -7,6 +7,7 @@ class Paciente(models.Model):
     fecha_nac = models.DateField()
     descripcion = models.TextField()
     telefono = models.CharField(max_length=20)
+    is_active = models.BooleanField(default=True)
 
     def __str__(self):
         return self.user.email
@@ -15,6 +16,7 @@ class Doctor(models.Model):
     user = models.OneToOneField("autentication.Usuario", on_delete=models.CASCADE)
     especialidad = models.CharField(max_length=20)
     colegiado = models.CharField(max_length=20)
+    is_active = models.BooleanField(default=True)
 
     def __str__(self):
         return self.user.email
@@ -54,6 +56,7 @@ class TratamientoMedicamento(models.Model):
     dosis = models.CharField(max_length=20)
     frecuencia = models.CharField(max_length=30, default='Diario')
     horario = models.CharField(max_length=20)
+    is_active = models.BooleanField(default=True)
     instrucciones = models.TextField()
 
     def __str__(self): 
@@ -67,6 +70,7 @@ class RegistroMedication(models.Model):
     hora = models.TimeField()
     foto = models.ImageField(upload_to='registro_medicacion', null=True, blank=True)
     observaciones = models.TextField(null=True, blank=True)
+    is_active = models.BooleanField(default=True)
 
     def __str__(self): 
         return f"{self.paciente.user.email} - {self.tratamiento_medicamento.medicamento.nombre_medicamento}" 
