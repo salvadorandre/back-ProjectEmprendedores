@@ -237,27 +237,33 @@ class LoginView(APIView):
             }, status=status.HTTP_400_BAD_REQUEST);
         
         if user: 
-            refresh = RefreshToken.for_user(user); 
-            doctor = Doctor.objects.get(user=user);
+            refresh = RefreshToken.for_user(user)
+            serializer = UsuarioSerializer(user)
+            
+            doctor = Doctor.objects.filter(user=user).first()
             if doctor: 
                 return Response({
                     'user': serializer.data,
-                    'doctor_id': doctor.id,
+                    'doctor_id': {
+                        'id': doctor.id,
+                        'especialidad': doctor.especialidad,
+                        'colegiado': doctor.colegiado,
+                    },
                     'refresh': str(refresh),
                     'access': str(refresh.access_token),
-                }, status=status.HTTP_200_OK);
+                }, status=status.HTTP_200_OK)
             
-            paciente = Paciente.objects.get(user=user);
+            paciente = Paciente.objects.filter(user=user).first()
             if paciente: 
                 return Response({
                     'user': serializer.data,
-                    'paciente_id': paciente.id,
+                    'paciente_id': {
+                        'id': paciente.id,
+                    },
                     'refresh': str(refresh),
                     'access': str(refresh.access_token),
-                }, status=status.HTTP_200_OK);
+                }, status=status.HTTP_200_OK)
             
-                
-            serializer = UsuarioSerializer(user);
             return Response({
                 'user': serializer.data,
                 'refresh': str(refresh),
