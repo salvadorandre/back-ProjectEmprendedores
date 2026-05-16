@@ -53,7 +53,8 @@ class MedicamentoView(APIView):
         # Si envían un ID, retornamos un solo elemento
         if id is not None:
             try:
-                med = Medicamento.objects.get(id=id, doctor=doctor)
+                doctor = request.user.doctor;
+                med = Medicamento.objects.get(id=id, doctor = doctor, is_active=True);
                 data = {
                     'id': med.id, 
                     'nombre_medicamento': med.nombre_medicamento, 
@@ -78,6 +79,7 @@ class MedicamentoView(APIView):
         for med in medicamentos: 
             data.append({
                 'id': med.id, 
+                'doctor': med.doctor.id, 
                 'nombre_medicamento': med.nombre_medicamento, 
                 'descripcion': med.descripcion, 
                 'imagen': med.imagen.url if med.imagen else None,
@@ -118,6 +120,10 @@ class MedicamentoView(APIView):
         try:
             with transaction.atomic(): 
 
+                # Solo el doctor es el dueño de sus medicamentos 
+                doctor = request.user.doctor;
+                data['doctor'] = doctor.id;
+                
                 serializer = MedicamentoSerializer(data=data);
 
                 if serializer.is_valid(): 
@@ -226,7 +232,7 @@ class MedicamentoView(APIView):
 
 @extend_schema(tags=['Tratamientos'])
 class TratamientoView(APIView) : 
-    #permission_classes = [IsAuthenticated]    
+    permission_classes = [IsAuthenticated]    
     serializer_class = TratamientoSerializer
 
     @extend_schema(
@@ -241,13 +247,11 @@ class TratamientoView(APIView) :
         }
     )
     def get(self, request, id=None): 
-        # Si envían un ID (que en este caso es un UUID), buscamos solo ese tratamiento
         if id is not None: 
             try: 
-                # Buscamos por 'uuid' porque esa es tu llave primaria (primary_key=True)
-                tratamiento = Tratamiento.objects.get(uuid=id) 
+                doctor = request.user.doctor;
+                tratamiento = Tratamiento.objects.get(uuid=id, doctor=doctor, is_active=True) 
                 
-                # ¡Usamos el serializador para convertirlo a diccionario!
                 serializer = TratamientoSerializer(tratamiento)
 
                 return Response({ 
@@ -300,6 +304,10 @@ class TratamientoView(APIView) :
         #validar con el serializador 
 
         data = request.data; 
+
+        # Solo el doctor es el dueño de sus tratamientos 
+        doctor = request.user.doctor; 
+        data['doctor'] = doctor.id; 
 
         serializer = TratamientoSerializer(data=data); 
 
