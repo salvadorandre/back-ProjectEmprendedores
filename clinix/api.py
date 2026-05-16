@@ -54,15 +54,7 @@ class MedicamentoView(APIView):
 
         # Si envían un ID, retornamos un solo elemento
         if id is not None:
-            try:
-                med = Medicamento.objects.get(id=id, doctor=doctor, is_active=True)
-                # Verificamos si imagen es un archivo (tiene atributo url) y no un string
-                imagen_url = None
-                if med.imagen and hasattr(med.imagen, 'url'):
-                    try:
-                        imagen_url = med.imagen.url
-                    except ValueError:
-                        imagen_url = None
+            try:                
 
                 data = {
                     'id': med.id, 

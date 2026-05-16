@@ -26,7 +26,7 @@ class Medicamento(models.Model):
     nombre_medicamento = models.CharField(max_length=20) 
     descripcion = models.TextField() 
     is_active = models.BooleanField(default=True)
-    imagen = models.ImageField(upload_to='medicamentos', null=True, blank=True);
+    imagen = models.URLField(null=True, blank=True);
 
     def __str__(self):
         return self.nombre_medicamento 
